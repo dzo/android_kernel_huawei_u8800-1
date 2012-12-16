@@ -52,7 +52,6 @@
 #include <mach/qdsp5v2/msm_lpa.h>
 #include <mach/dma.h>
 #include <linux/android_pmem.h>
-#include <linux/input/msm_ts.h>
 #include <mach/pmic.h>
 #include <mach/rpc_pmapp.h>
 #include <mach/qdsp5v2/aux_pcm.h>
@@ -2061,170 +2060,6 @@ static struct marimba_fm_platform_data marimba_fm_pdata = {
 #define BAHAMA_SLAVE_ID_FM_ADDR         0x2A
 #define BAHAMA_SLAVE_ID_QMEMBIST_ADDR   0x7B
 
-static const char *tsadc_id = "MADC";
-
-static struct regulator_bulk_data regs_tsadc_marimba[] = {
-	{ .supply = "gp12", .min_uV = 2200000, .max_uV = 2200000 },
-	{ .supply = "s2",   .min_uV = 1300000, .max_uV = 1300000 },
-};
-
-static struct regulator_bulk_data regs_tsadc_timpani[] = {
-	{ .supply = "s3",   .min_uV = 1800000, .max_uV = 1800000 },
-	{ .supply = "gp12", .min_uV = 2200000, .max_uV = 2200000 },
-	{ .supply = "gp16", .min_uV = 1200000, .max_uV = 1200000 },
-};
-
-static struct regulator_bulk_data *regs_tsadc;
-static int regs_tsadc_count;
-
-static int marimba_tsadc_power(int vreg_on)
-{
-	int rc = 0;
-	int tsadc_adie_type = adie_get_detected_codec_type();
-
-	switch (tsadc_adie_type) {
-	case TIMPANI_ID:
-		rc = pmapp_clock_vote(tsadc_id, PMAPP_CLOCK_ID_D1,
-			vreg_on ? PMAPP_CLOCK_VOTE_ON : PMAPP_CLOCK_VOTE_OFF);
-		if (rc)	{
-			pr_err("%s: unable to %svote for d1 clk\n",
-				__func__, vreg_on ? "" : "de-");
-			goto D1_vote_fail;
-		}
-
-		/* fall through */
-	case MARIMBA_ID:
-		rc = pmapp_clock_vote(tsadc_id, PMAPP_CLOCK_ID_DO,
-			vreg_on ? PMAPP_CLOCK_VOTE_ON : PMAPP_CLOCK_VOTE_OFF);
-		if (rc)	{
-			pr_err("%s: unable to %svote for d1 clk\n",
-				__func__, vreg_on ? "" : "de-");
-			goto D0_vote_fail;
-		}
-
-		WARN_ON(regs_tsadc_count == 0);
-
-		rc = vreg_on ?
-			regulator_bulk_enable(regs_tsadc_count, regs_tsadc) :
-			regulator_bulk_disable(regs_tsadc_count, regs_tsadc);
-
-		if (rc) {
-			pr_err("%s: regulator %sable failed: %d\n",
-					__func__, vreg_on ? "en" : "dis", rc);
-			goto regulator_switch_fail;
-		}
-
-		break;
-	default:
-		pr_err("%s:Adie %d not supported\n",
-				__func__, tsadc_adie_type);
-		return -ENODEV;
-	}
-
-	msleep(5); /* ensure power is stable */
-
-	return 0;
-
-regulator_switch_fail:
-	pmapp_clock_vote(tsadc_id, PMAPP_CLOCK_ID_DO,
-		vreg_on ? PMAPP_CLOCK_VOTE_OFF : PMAPP_CLOCK_VOTE_ON);
-D0_vote_fail:
-	if (tsadc_adie_type == TIMPANI_ID)
-		pmapp_clock_vote(tsadc_id, PMAPP_CLOCK_ID_D1,
-			vreg_on ? PMAPP_CLOCK_VOTE_OFF : PMAPP_CLOCK_VOTE_ON);
-D1_vote_fail:
-	return rc;
-}
-
-static int marimba_tsadc_init(void)
-{
-	int rc = 0;
-	int tsadc_adie_type = adie_get_detected_codec_type();
-
-	switch (tsadc_adie_type) {
-	case MARIMBA_ID:
-		regs_tsadc = regs_tsadc_marimba;
-		regs_tsadc_count = ARRAY_SIZE(regs_tsadc_marimba);
-		break;
-	case TIMPANI_ID:
-		regs_tsadc = regs_tsadc_timpani;
-		regs_tsadc_count = ARRAY_SIZE(regs_tsadc_timpani);
-		break;
-	default:
-		pr_err("%s:Adie %d not supported\n",
-				__func__, tsadc_adie_type);
-		rc = -ENODEV;
-		goto out;
-	}
-
-	rc = regulator_bulk_get(NULL, regs_tsadc_count, regs_tsadc);
-	if (rc) {
-		pr_err("%s: could not get regulators: %d\n",
-				__func__, rc);
-		goto out;
-	}
-
-	rc = regulator_bulk_set_voltage(regs_tsadc_count, regs_tsadc);
-	if (rc) {
-		pr_err("%s: could not set regulator voltages: %d\n",
-				__func__, rc);
-		goto vreg_free;
-	}
-
-	return 0;
-
-vreg_free:
-	regulator_bulk_free(regs_tsadc_count, regs_tsadc);
-out:
-	regs_tsadc = NULL;
-	regs_tsadc_count = 0;
-	return rc;
-}
-
-static int marimba_tsadc_exit(void)
-{
-	regulator_bulk_free(regs_tsadc_count, regs_tsadc);
-	regs_tsadc_count = 0;
-	regs_tsadc = NULL;
-
-	return 0;
-}
-
-
-static struct msm_ts_platform_data msm_ts_data = {
-	.min_x          = 284,
-	.max_x          = 3801,
-	.min_y          = 155,
-	.max_y          = 3929,
-	.min_press      = 0,
-	.max_press      = 255,
-	.inv_x          = 4096,
-	.inv_y          = 4096,
-	.can_wakeup	= false,
-};
-
-static struct marimba_tsadc_platform_data marimba_tsadc_pdata = {
-	.marimba_tsadc_power =  marimba_tsadc_power,
-	.init		     =  marimba_tsadc_init,
-	.exit		     =  marimba_tsadc_exit,
-	.tsadc_prechg_en = true,
-	.can_wakeup	= false,
-	.setup = {
-		.pen_irq_en	=	true,
-		.tsadc_en	=	true,
-	},
-	.params2 = {
-		.input_clk_khz		=	2400,
-		.sample_prd		=	TSADC_CLK_3,
-	},
-	.params3 = {
-		.prechg_time_nsecs	=	6400,
-		.stable_time_nsecs	=	6400,
-		.tsadc_test_mode	=	0,
-	},
-	.tssc_data = &msm_ts_data,
-};
-
 static struct regulator_bulk_data codec_regs[] = {
 	{ .supply = "s4", .min_uV = 2200000, .max_uV = 2200000 },
 };
@@ -2343,7 +2178,6 @@ static struct marimba_platform_data timpani_pdata = {
 	.marimba_setup = msm_timpani_setup_power,
 	.marimba_shutdown = msm_timpani_shutdown_power,
 	.codec = &timpani_codec_pdata,
-	.tsadc = &marimba_tsadc_pdata,
 	.tsadc_ssbi_adap = MARIMBA_SSBI_ADAP,
 };
 
@@ -5936,9 +5770,6 @@ static void __init msm7x30_init(void)
 
 	i2c_register_board_info(0, msm_i2c_board_info,
 			ARRAY_SIZE(msm_i2c_board_info));
-
-	if (!machine_is_msm8x55_svlte_ffa() && !machine_is_msm7x30_fluid())
-		marimba_pdata.tsadc = &marimba_tsadc_pdata;
 
 #ifdef CONFIG_BOSCH_BMA150
 	if (machine_is_msm7x30_fluid())
