@@ -83,7 +83,6 @@
 #include <mach/qdsp5v2/audio_dev_ctl.h>
 #include <mach/sdio_al.h>
 #include "smd_private.h"
-#include <linux/bma150.h>
 
 #include "board-u8800.h"
 #include "pm.h"
@@ -141,8 +140,6 @@ static struct platform_device ion_dev;
 #define PMIC_GPIO_FLASH_BOOST_ENABLE	15	/* PMIC GPIO Number 16 */
 
 #define PMIC_GPIO_WLAN_EXT_POR  22 /* PMIC GPIO NUMBER 23 */
-
-#define BMA150_GPIO_INT 1
 
 #define PMIC_GPIO_QUICKVX_CLK 37 /* PMIC GPIO 38 */
 
@@ -2513,77 +2510,6 @@ static struct platform_device android_usb_device = {
 	.id		= -1,
 	.dev		= {
 		.platform_data = &android_usb_pdata,
-	},
-};
-#endif
-
-#ifdef CONFIG_BOSCH_BMA150
-
-static struct regulator_bulk_data sensors_ldo[] = {
-	{ .supply = "gp7", .min_uV = 1800000, .max_uV = 1800000 },
-	{ .supply = "gp6", .min_uV = 3050000, .max_uV = 3100000 },
-};
-
-static int __init sensors_ldo_init(void)
-{
-	int rc;
-
-	rc = regulator_bulk_get(NULL, ARRAY_SIZE(sensors_ldo), sensors_ldo);
-
-	if (rc) {
-		pr_err("%s: could not get regulators: %d\n", __func__, rc);
-		goto out;
-	}
-
-	rc = regulator_bulk_set_voltage(ARRAY_SIZE(sensors_ldo), sensors_ldo);
-
-	if (rc) {
-		pr_err("%s: could not set voltages: %d\n", __func__, rc);
-		goto reg_free;
-	}
-
-	return 0;
-
-reg_free:
-	regulator_bulk_free(ARRAY_SIZE(sensors_ldo), sensors_ldo);
-out:
-	return rc;
-}
-
-static int sensors_ldo_set(int on)
-{
-	int rc = on ?
-		regulator_bulk_enable(ARRAY_SIZE(sensors_ldo), sensors_ldo) :
-		regulator_bulk_disable(ARRAY_SIZE(sensors_ldo), sensors_ldo);
-
-	if (rc)
-		pr_err("%s: could not %sable regulators: %d\n",
-				__func__, on ? "en" : "dis", rc);
-
-	return rc;
-}
-
-static int sensors_ldo_enable(void)
-{
-	return sensors_ldo_set(1);
-}
-
-static void sensors_ldo_disable(void)
-{
-	sensors_ldo_set(0);
-}
-
-static struct bma150_platform_data bma150_data = {
-	.power_on = sensors_ldo_enable,
-	.power_off = sensors_ldo_disable,
-};
-
-static struct i2c_board_info bma150_board_info[] __initdata = {
-	{
-		I2C_BOARD_INFO("bma150", 0x38),
-		.flags = I2C_CLIENT_WAKE,
-		.irq = MSM_GPIO_TO_INT(BMA150_GPIO_INT),
-		.platform_data = &bma150_data,
 	},
 };
 #endif
@@ -5488,7 +5414,6 @@ static void __init msm7x30_init(void)
 	msm_qsd_spi_init();
 
 	atv_dac_power_init();
-	sensors_ldo_init();
 	msm_fb_add_devices();
 	msm_pm_set_platform_data(msm_pm_data, ARRAY_SIZE(msm_pm_data));
 	BUG_ON(msm_pm_boot_init(&msm_pm_boot_pdata));
@@ -5505,12 +5430,6 @@ static void __init msm7x30_init(void)
 
 	i2c_register_board_info(0, msm_i2c_board_info,
 			ARRAY_SIZE(msm_i2c_board_info));
-
-#ifdef CONFIG_BOSCH_BMA150
-	if (machine_is_msm7x30_fluid())
-		i2c_register_board_info(0, bma150_board_info,
-					ARRAY_SIZE(bma150_board_info));
-#endif
 
 	i2c_register_board_info(2, msm_marimba_board_info,
 			ARRAY_SIZE(msm_marimba_board_info));
