@@ -2787,12 +2787,6 @@ static struct resource msm_v4l2_video_overlay_resources[] = {
 
 static int msm_fb_detect_panel(const char *name)
 {
-	if (!strncmp(name, "mddi_toshiba_wvga_pt", 20))
-		return -EPERM;
-	else if (!strcmp(name, "mddi_orise"))
-		return -EPERM;
-	else if (!strcmp(name, "mddi_quickvx"))
-		return -EPERM;
 	return -ENODEV;
 }
 
@@ -2977,30 +2971,6 @@ static struct platform_device qcedev_device = {
 	},
 };
 #endif
-
-static int mddi_toshiba_pmic_bl(int level)
-{
-	int ret = -EPERM;
-
-	ret = pmic_set_led_intensity(LED_LCD, level);
-
-	if (ret)
-		printk(KERN_WARNING "%s: can't set lcd backlight!\n",
-					__func__);
-	return ret;
-}
-
-static struct msm_panel_common_pdata mddi_toshiba_pdata = {
-	.pmic_backlight = mddi_toshiba_pmic_bl,
-};
-
-static struct platform_device mddi_toshiba_device = {
-	.name   = "mddi_toshiba",
-	.id     = 0,
-	.dev    = {
-		.platform_data = &mddi_toshiba_pdata,
-	}
-};
 
 static unsigned wega_reset_gpio =
 	GPIO_CFG(180, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA);
@@ -4030,7 +4000,6 @@ static struct platform_device *devices[] __initdata = {
 	&msm_v4l2_video_overlay_device,
 #endif
 	&msm_migrate_pages_device,
-	&mddi_toshiba_device,
 #ifdef CONFIG_MSM_ROTATOR
 	&msm_rotator_device,
 #endif
