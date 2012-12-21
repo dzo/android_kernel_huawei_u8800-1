@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -8,13 +8,54 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
+ *
  */
-#include <linux/module.h>
-#include <mach/irqs.h>
-#include <mach/gpiomux.h>
 
-static int __init gpiomux_init(void)
+#include <asm/mach-types.h>
+#include <mach/gpio.h>
+#include <mach/gpiomux.h>
+#include <mach/socinfo.h>
+#include "devices.h"
+
+static struct gpiomux_setting ts_int_act_cfg = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_DOWN,
+};
+
+static struct gpiomux_setting ts_resout_act_cfg = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_DOWN,
+};
+
+static struct msm_gpiomux_config msm7x30_ts_configs[] __initdata = {
+	{	/* TOUCH_INT */
+		.gpio = 148,
+		.settings = {
+			[GPIOMUX_ACTIVE]    = &ts_int_act_cfg,
+		},
+	},
+	{	/* TOUCH_RESET */
+		.gpio = 85,
+		.settings = {
+			[GPIOMUX_ACTIVE]    = &ts_resout_act_cfg,
+		},
+	},
+};
+
+int __init msm7x30_init_gpiomux(void)
 {
-	return msm_gpiomux_init(NR_GPIO_IRQS);
+	int rc = msm_gpiomux_init(NR_GPIO_IRQS);
+	if (rc) {
+		pr_err(KERN_ERR "msm_gpiomux_init failed %d\n", rc);
+		return rc;
+	}
+
+	msm_gpiomux_install(msm7x30_ts_configs,
+			ARRAY_SIZE(msm7x30_ts_configs));
+
+	return rc;
 }
-postcore_initcall(gpiomux_init);
+
+postcore_initcall(msm7x30_init_gpiomux);
