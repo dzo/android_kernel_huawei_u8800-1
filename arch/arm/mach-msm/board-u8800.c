@@ -87,6 +87,10 @@
 #include "board-u8800.h"
 #include "pm.h"
 
+#if defined(CONFIG_TOUCHSCREEN_ATMEL_MXT)
+#include <linux/i2c/atmel_mxt_ts.h>
+#endif
+
 #define MSM_PMEM_SF_SIZE	0x1700000
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
 #define MSM_FB_PRIM_BUF_SIZE   (864 * 480 * 4 * 3) /* 4bpp * 3 Pages */
@@ -4858,6 +4862,117 @@ static struct platform_device flip_switch_device = {
 	}
 };
 
+#define TS_GPIO_IRQ		148
+#define TS_GPIO_RESET	85
+
+#if defined(CONFIG_TOUCHSCREEN_ATMEL_MXT)
+static const u8 mxt224_config_data[] = {
+	/* T6 Object */
+	 0, 0, 0, 0, 0, 0,
+	/* T38 Object */
+	 0, 0, 0, 15, 12, 11, 0, 0,
+	/* T7 Object */
+	 50, 15, 25,
+	/* T8 Object */
+	 10, 0, 20, 10, 0, 0, 5, 15,
+	/* T9 Object */
+	 139, 0, 0, 17, 12, 0, 17, 50, 2, 1,
+	 0, 3, 1, 0, 10, 10, 10, 10, 113, 3,
+	 223, 1, 35, 33, 52, 51, 148, 10, 139, 30,
+	 0,
+	/* T15 Object */
+	 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	 0,
+	/* T18 Object */
+	 0, 0,
+	/* T19 Object */
+	 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	 0, 0, 0, 0, 0, 0,
+	/* T20 Object */
+	 0, 0, 0, 0, 0, 0, 0, 80, 40, 4,
+	 35, 10,
+	/* T22 Object */
+	 15, 0, 0, 0, 0, 0, 0, 0, 16, 0,
+	 1, 0, 7, 18, 25, 30, 0,
+	/* T23 Object */
+	 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	 0, 0, 0, 0, 0,
+	/* T24 Object */
+	 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	/* T25 Object */
+	 3, 0, 200, 50, 64, 31, 0, 0, 0, 0,
+	 0, 0, 0, 0,
+	/* T27 Object */
+	 0, 0, 0, 0, 0, 0, 0,
+	/* T28 Object */
+	 0, 0, 1, 4, 8, 60,
+};
+
+static struct mxt_config_info mxt_config_array[] = {
+	{
+		.config			= mxt224_config_data,
+		.config_length	= ARRAY_SIZE(mxt224_config_data),
+		.family_id		= 0x80,
+		.variant_id		= 0x01,
+		.version		= 0x16,
+		.build			= 0xAB,
+	},
+};
+
+int mxt_init_hw(bool on)
+{
+	/* Stub */
+	return 0;
+}
+
+int mxt_power_on(bool on)
+{
+	/* Stub */
+	return 0;
+}
+
+int mxt_lpm_on(bool on)
+{
+	/* Stub */
+	return 0;
+}
+
+static struct mxt_platform_data mxt_platform_data = {
+	.config_array		= mxt_config_array,
+	.config_array_size	= ARRAY_SIZE(mxt_config_array),
+	.panel_minx			= 0,
+	.panel_maxx			= 480,
+	.panel_miny			= 0,
+	.panel_maxy			= 882,
+	.disp_minx			= 0,
+	.disp_maxx			= 480,
+	.disp_miny			= 0,
+	.disp_maxy			= 800,
+	.irqflags			= IRQF_TRIGGER_FALLING,
+	.reset_gpio			= TS_GPIO_RESET,
+	.irq_gpio			= TS_GPIO_IRQ,
+	.init_hw			= mxt_init_hw,
+	.power_on			= mxt_power_on,
+	.lpm_on				= mxt_lpm_on,
+};
+
+static struct i2c_board_info atmel_mxt_ts[] = {
+	{
+		I2C_BOARD_INFO("atmel_mxt_ts", 0x4a),
+		.platform_data = &mxt_platform_data,
+		.irq = MSM_GPIO_TO_INT(TS_GPIO_IRQ),
+	},
+};
+#endif
+
+static void __init touch_init(void)
+{
+#if defined(CONFIG_TOUCHSCREEN_ATMEL_MXT)
+	i2c_register_board_info(0, atmel_mxt_ts, ARRAY_SIZE(atmel_mxt_ts));
+#endif
+}
+
 static void __init msm7x30_init(void)
 {
 	int rc;
@@ -4973,6 +5088,8 @@ static void __init msm7x30_init(void)
 			pr_err("%s: gpio_tlmm_config(%#x)=%d\n",
 				__func__, usb_hub_gpio_cfg_value, rc);
 	}
+
+	touch_init();
 
 	boot_reason = *(unsigned int *)
 		(smem_get_entry(SMEM_POWER_ON_STATUS_INFO, &smem_size));
