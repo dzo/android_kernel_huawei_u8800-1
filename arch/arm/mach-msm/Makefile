@@ -267,6 +267,7 @@ obj-$(CONFIG_MACH_MSM8X55_SURF) += board-msm7x30.o devices-msm7x30.o gpiomux-7x3
 obj-$(CONFIG_MACH_MSM8X55_FFA) += board-msm7x30.o devices-msm7x30.o gpiomux-7x30.o
 obj-$(CONFIG_MACH_MSM8X55_SVLTE_FFA) += board-msm7x30.o devices-msm7x30.o gpiomux-7x30.o
 obj-$(CONFIG_MACH_MSM8X55_SVLTE_SURF) += board-msm7x30.o devices-msm7x30.o gpiomux-7x30.o
+obj-$(CONFIG_MACH_HUAWEI_U8800) += board-u8800.o devices-u8800.o board-u8800-gpiomux.o
 obj-$(CONFIG_ARCH_MSM7X30) += memory_topology.o clock-local.o clock-7x30.o acpuclock-7x30.o clock-pll.o
 obj-$(CONFIG_MACH_MSM7X25_SURF) += board-msm7x27.o devices-msm7x25.o
 obj-$(CONFIG_MACH_MSM7X25_FFA) += board-msm7x27.o devices-msm7x25.o
@@ -382,6 +383,7 @@ obj-$(CONFIG_MACH_MSM8X55_SURF) += board-msm7x30-regulator.o
 obj-$(CONFIG_MACH_MSM8X55_FFA) += board-msm7x30-regulator.o
 obj-$(CONFIG_MACH_MSM8X55_SVLTE_FFA) += board-msm7x30-regulator.o
 obj-$(CONFIG_MACH_MSM8X55_SVLTE_SURF) += board-msm7x30-regulator.o
+obj-$(CONFIG_MACH_HUAWEI_U8800) += board-u8800-regulator.o
 obj-$(CONFIG_ARCH_MSM7X27A) += board-msm7x27a-regulator.o
 endif
 
