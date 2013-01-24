@@ -90,6 +90,10 @@
 #if defined(CONFIG_TOUCHSCREEN_ATMEL_MXT)
 #include <linux/i2c/atmel_mxt_ts.h>
 #endif
+#if defined(CONFIG_APS_12D)
+#include <linux/input/aps-12d.h>
+#endif
+
 
 #define MSM_PMEM_SF_SIZE	0x1700000
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
@@ -2374,7 +2378,22 @@ static struct platform_device android_usb_device = {
 };
 #endif
 
+#ifdef CONFIG_APS_12D
+static struct aps_12d_platform_data aps_12d_pdata = {
+	.range = APS_12D_RANGE_0P24_TO_1000,
+	.irdr_current = APS_12D_IRDR_6P25,
+	.mod_freq = APS_12D_MOD_FREQ_DC,
+	.allow_reconfig = true,
+};
+#endif
+
 static struct i2c_board_info msm_i2c_board_info[] = {
+	#ifdef CONFIG_APS_12D
+	{
+		I2C_BOARD_INFO("aps-12d", 0x88 >> 1),
+		.platform_data = &aps_12d_pdata,
+	},
+	#endif
 };
 
 static struct i2c_board_info msm_marimba_board_info[] = {
