@@ -4705,10 +4705,14 @@ out:
 	sdcc_vreg_data[sdcc_no] = NULL;
 	return rc;
 }
+void *pAniSirGlobal;
+EXPORT_SYMBOL(pAniSirGlobal);
 
 static void __init msm7x30_init_mmc(void)
 {
+	pAniSirGlobal=kmalloc(40000,GFP_KERNEL); // pre-allocate 40K for wifi data
 #ifdef CONFIG_MMC_MSM_SDC1_SUPPORT
+
 	if (mmc_regulator_init(1, "s3", 1800000))
 		goto out1;
 
